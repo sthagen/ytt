@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/k14s/ytt/pkg/filepos"
 	"github.com/k14s/ytt/pkg/yamlmeta"
@@ -19,15 +20,27 @@ type DataValuesPreProcessing struct {
 }
 
 func (o DataValuesPreProcessing) Apply() (interface{}, error) {
-	var values *yamlmeta.Document
+	files := append([]*FileInLibrary{}, o.valuesFiles...)
 
 	// Respect assigned file order for data values overlaying to succeed
-	SortFilesInLibrary(o.valuesFiles)
+	SortFilesInLibrary(files)
 
-	for _, fileInLib := range o.valuesFiles {
+	result, err := o.apply(files)
+	if err != nil {
+		errMsg := "Overlaying data values (in following order: %s): %s"
+		return nil, fmt.Errorf(errMsg, o.allFileDescs(files), err)
+	}
+
+	return result, nil
+}
+
+func (o DataValuesPreProcessing) apply(files []*FileInLibrary) (interface{}, error) {
+	var values *yamlmeta.Document
+
+	for _, fileInLib := range files {
 		valuesDocs, err := o.templateFile(fileInLib)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Templating file '%s': %s", fileInLib.File.RelativePath(), err)
 		}
 
 		for _, valuesDoc := range valuesDocs {
@@ -50,6 +63,17 @@ func (o DataValuesPreProcessing) Apply() (interface{}, error) {
 	}
 
 	return finalValues.AsInterface(), nil
+}
+
+func (p DataValuesPreProcessing) allFileDescs(files []*FileInLibrary) string {
+	var result []string
+	for _, fileInLib := range files {
+		result = append(result, fileInLib.File.RelativePath())
+	}
+	if len(p.valuesAsts) > 0 {
+		result = append(result, "additional data values")
+	}
+	return strings.Join(result, ", ")
 }
 
 func (p DataValuesPreProcessing) templateFile(fileInLib *FileInLibrary) ([]*yamlmeta.Document, error) {
