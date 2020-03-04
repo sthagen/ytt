@@ -30,7 +30,7 @@ func (b jsonModule) Encode(thread *starlark.Thread, f *starlark.Builtin, args st
 		return starlark.None, fmt.Errorf("expected exactly one argument")
 	}
 
-	val := core.NewStarlarkValue(args.Index(0)).AsInterface()
+	val := core.NewStarlarkValue(args.Index(0)).AsGoValue()
 	val = orderedmap.Conversion{yamlmeta.NewGoFromAST(val)}.AsUnorderedStringMaps()
 
 	valBs, err := json.Marshal(val)
@@ -60,5 +60,5 @@ func (b jsonModule) Decode(thread *starlark.Thread, f *starlark.Builtin, args st
 
 	valDecoded = orderedmap.Conversion{valDecoded}.FromUnorderedMaps()
 
-	return core.NewGoValue(valDecoded, false).AsStarlarkValue(), nil
+	return core.NewGoValue(valDecoded).AsStarlarkValue(), nil
 }
