@@ -6,7 +6,6 @@ import (
 
 	"github.com/k14s/ytt/pkg/files"
 	"github.com/k14s/ytt/pkg/template"
-	"github.com/k14s/ytt/pkg/template/core"
 	"github.com/k14s/ytt/pkg/texttemplate"
 	"github.com/k14s/ytt/pkg/yamlmeta"
 	"github.com/k14s/ytt/pkg/yamltemplate"
@@ -16,7 +15,8 @@ import (
 
 type TemplateLoader struct {
 	ui                 files.UI
-	values             *yamlmeta.Document
+	values             *DataValues
+	libraryValuess     []*DataValues
 	opts               TemplateLoaderOpts
 	compiledTemplates  map[string]*template.CompiledTemplate
 	libraryExecFactory *LibraryExecutionFactory
@@ -27,7 +27,7 @@ type TemplateLoaderOpts struct {
 	StrictYAML            bool
 }
 
-func NewTemplateLoader(values *yamlmeta.Document, ui files.UI, opts TemplateLoaderOpts,
+func NewTemplateLoader(values *DataValues, libraryValuess []*DataValues, ui files.UI, opts TemplateLoaderOpts,
 	libraryExecFactory *LibraryExecutionFactory) *TemplateLoader {
 
 	if values == nil {
@@ -37,6 +37,7 @@ func NewTemplateLoader(values *yamlmeta.Document, ui files.UI, opts TemplateLoad
 	return &TemplateLoader{
 		ui:                 ui,
 		values:             values,
+		libraryValuess:     libraryValuess,
 		opts:               opts,
 		compiledTemplates:  map[string]*template.CompiledTemplate{},
 		libraryExecFactory: libraryExecFactory,
@@ -117,45 +118,6 @@ func (l *TemplateLoader) Load(thread *starlark.Thread, module string) (starlark.
 	}
 }
 
-func (l *TemplateLoader) ListData(thread *starlark.Thread, f *starlark.Builtin,
-	args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-
-	if args.Len() != 0 {
-		return starlark.None, fmt.Errorf("expected exactly zero arguments")
-	}
-
-	result := []starlark.Value{}
-	for _, fileInLib := range l.getCurrentLibrary(thread).ListAccessibleFiles() {
-		result = append(result, starlark.String(fileInLib.File.RelativePath()))
-	}
-	return starlark.NewList(result), nil
-}
-
-func (l *TemplateLoader) LoadData(thread *starlark.Thread, f *starlark.Builtin,
-	args starlark.Tuple, kwargs []starlark.Tuple) (starlark.Value, error) {
-
-	if args.Len() != 1 {
-		return starlark.None, fmt.Errorf("expected exactly one argument")
-	}
-
-	path, err := core.NewStarlarkValue(args.Index(0)).AsString()
-	if err != nil {
-		return starlark.None, err
-	}
-
-	fileInLib, err := l.getCurrentLibrary(thread).FindFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	fileBs, err := fileInLib.File.Bytes()
-	if err != nil {
-		return nil, err
-	}
-
-	return starlark.String(string(fileBs)), nil
-}
-
 func (l *TemplateLoader) ParseYAML(file *files.File) (*yamlmeta.DocumentSet, error) {
 	fileBs, err := file.Bytes()
 	if err != nil {
@@ -201,7 +163,8 @@ func (l *TemplateLoader) EvalYAML(libraryCtx LibraryExecutionContext, file *file
 	l.ui.Debugf("### template\n%s", compiledTemplate.DebugCodeAsString())
 
 	yttLibrary := yttlibrary.NewAPI(compiledTemplate.TplReplaceNode,
-		l.values, l, NewLibraryModule(libraryCtx, l.libraryExecFactory).AsModule())
+		yttlibrary.NewDataModule(l.values.Doc, DataLoader{libraryCtx}),
+		NewLibraryModule(libraryCtx, l.libraryExecFactory, l.libraryValuess).AsModule())
 
 	thread := l.newThread(libraryCtx, yttLibrary, file)
 
@@ -242,7 +205,8 @@ func (l *TemplateLoader) EvalText(libraryCtx LibraryExecutionContext, file *file
 	l.ui.Debugf("### template\n%s", compiledTemplate.DebugCodeAsString())
 
 	yttLibrary := yttlibrary.NewAPI(compiledTemplate.TplReplaceNode,
-		l.values, l, NewLibraryModule(libraryCtx, l.libraryExecFactory).AsModule())
+		yttlibrary.NewDataModule(l.values.Doc, DataLoader{libraryCtx}),
+		NewLibraryModule(libraryCtx, l.libraryExecFactory, l.libraryValuess).AsModule())
 
 	thread := l.newThread(libraryCtx, yttLibrary, file)
 
@@ -271,7 +235,8 @@ func (l *TemplateLoader) EvalStarlark(libraryCtx LibraryExecutionContext, file *
 	l.ui.Debugf("### template\n%s", compiledTemplate.DebugCodeAsString())
 
 	yttLibrary := yttlibrary.NewAPI(compiledTemplate.TplReplaceNode,
-		l.values, l, NewLibraryModule(libraryCtx, l.libraryExecFactory).AsModule())
+		yttlibrary.NewDataModule(l.values.Doc, DataLoader{libraryCtx}),
+		NewLibraryModule(libraryCtx, l.libraryExecFactory, l.libraryValuess).AsModule())
 
 	thread := l.newThread(libraryCtx, yttLibrary, file)
 

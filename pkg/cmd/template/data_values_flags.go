@@ -8,10 +8,16 @@ import (
 
 	"github.com/k14s/ytt/pkg/filepos"
 	"github.com/k14s/ytt/pkg/template"
+	"github.com/k14s/ytt/pkg/workspace"
 	"github.com/k14s/ytt/pkg/yamlmeta"
 	yttoverlay "github.com/k14s/ytt/pkg/yttlibrary/overlay"
 	"github.com/spf13/cobra"
 	"go.starlark.net/starlark"
+)
+
+const (
+	dvsKVSep     = "="
+	dvsMapKeySep = "."
 )
 
 type DataValuesFlags struct {
@@ -23,6 +29,8 @@ type DataValuesFlags struct {
 	KVsFromFiles   []string
 
 	Inspect bool
+
+	EnvironFunc func() []string
 }
 
 func (s *DataValuesFlags) Set(cmd *cobra.Command) {
@@ -38,10 +46,12 @@ func (s *DataValuesFlags) Set(cmd *cobra.Command) {
 
 type dataValuesFlagsSource struct {
 	Values        []string
-	TransformFunc func(string) (interface{}, error)
+	TransformFunc valueTransformFunc
 }
 
-func (s *DataValuesFlags) AsOverlays(strict bool) ([]*yamlmeta.Document, error) {
+type valueTransformFunc func(string) (interface{}, error)
+
+func (s *DataValuesFlags) AsOverlays(strict bool) ([]*workspace.DataValues, []*workspace.DataValues, error) {
 	plainValFunc := func(rawVal string) (interface{}, error) { return rawVal, nil }
 
 	yamlValFunc := func(rawVal string) (interface{}, error) {
@@ -52,13 +62,13 @@ func (s *DataValuesFlags) AsOverlays(strict bool) ([]*yamlmeta.Document, error) 
 		return val, nil
 	}
 
-	var result []*yamlmeta.Document
+	var result []*workspace.DataValues
 
 	for _, src := range []dataValuesFlagsSource{{s.EnvFromStrings, plainValFunc}, {s.EnvFromYAML, yamlValFunc}} {
 		for _, envPrefix := range src.Values {
 			vals, err := s.env(envPrefix, src.TransformFunc)
 			if err != nil {
-				return nil, fmt.Errorf("Extracting data values from env under prefix '%s': %s", envPrefix, err)
+				return nil, nil, fmt.Errorf("Extracting data values from env under prefix '%s': %s", envPrefix, err)
 			}
 			result = append(result, vals...)
 		}
@@ -69,7 +79,7 @@ func (s *DataValuesFlags) AsOverlays(strict bool) ([]*yamlmeta.Document, error) 
 		for _, kv := range src.Values {
 			val, err := s.kv(kv, src.TransformFunc)
 			if err != nil {
-				return nil, fmt.Errorf("Extracting data value from KV: %s", err)
+				return nil, nil, fmt.Errorf("Extracting data value from KV: %s", err)
 			}
 			result = append(result, val)
 		}
@@ -78,25 +88,49 @@ func (s *DataValuesFlags) AsOverlays(strict bool) ([]*yamlmeta.Document, error) 
 	for _, file := range s.KVsFromFiles {
 		val, err := s.file(file)
 		if err != nil {
-			return nil, fmt.Errorf("Extracting data value from file: %s", err)
+			return nil, nil, fmt.Errorf("Extracting data value from file: %s", err)
 		}
 		result = append(result, val)
 	}
 
-	return result, nil
+	var overlayValues []*workspace.DataValues
+	var libraryOverlays []*workspace.DataValues
+	for _, doc := range result {
+		if doc.HasLib() {
+			libraryOverlays = append(libraryOverlays, doc)
+		} else {
+			overlayValues = append(overlayValues, doc)
+		}
+	}
+
+	return overlayValues, libraryOverlays, nil
 }
 
-func (s *DataValuesFlags) env(prefix string, valueFunc func(string) (interface{}, error)) ([]*yamlmeta.Document, error) {
-	result := []*yamlmeta.Document{}
+func (s *DataValuesFlags) env(prefix string, valueFunc valueTransformFunc) ([]*workspace.DataValues, error) {
+	const (
+		envKeyPrefix = "_"
+		envMapKeySep = "__"
+	)
+
+	result := []*workspace.DataValues{}
 	envVars := os.Environ()
 
+	if s.EnvironFunc != nil {
+		envVars = s.EnvironFunc()
+	}
+
+	lib, keyPrefix, err := s.libraryPathAndKey(prefix)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, envVar := range envVars {
-		pieces := strings.SplitN(envVar, "=", 2)
+		pieces := strings.SplitN(envVar, dvsKVSep, 2)
 		if len(pieces) != 2 {
 			return nil, fmt.Errorf("Expected env variable to be key-value pair (format: key=value)")
 		}
 
-		if !strings.HasPrefix(pieces[0], prefix+"_") {
+		if !strings.HasPrefix(pieces[0], keyPrefix+envKeyPrefix) {
 			continue
 		}
 
@@ -106,16 +140,22 @@ func (s *DataValuesFlags) env(prefix string, valueFunc func(string) (interface{}
 		}
 
 		// '__' gets translated into a '.' since periods may not be liked by shells
-		keyPieces := strings.Split(strings.TrimPrefix(pieces[0], prefix+"_"), "__")
+		keyPieces := strings.Split(strings.TrimPrefix(pieces[0], keyPrefix+envKeyPrefix), envMapKeySep)
+		overlay := s.buildOverlay(keyPieces, val, "env var")
 
-		result = append(result, s.buildOverlay(keyPieces, val, "env var"))
+		dvs, err := workspace.NewDataValuesWithOptionalLib(overlay, lib)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, dvs)
 	}
 
 	return result, nil
 }
 
-func (s *DataValuesFlags) kv(kv string, valueFunc func(string) (interface{}, error)) (*yamlmeta.Document, error) {
-	pieces := strings.SplitN(kv, "=", 2)
+func (s *DataValuesFlags) kv(kv string, valueFunc valueTransformFunc) (*workspace.DataValues, error) {
+	pieces := strings.SplitN(kv, dvsKVSep, 2)
 	if len(pieces) != 2 {
 		return nil, fmt.Errorf("Expected format key=value")
 	}
@@ -125,7 +165,14 @@ func (s *DataValuesFlags) kv(kv string, valueFunc func(string) (interface{}, err
 		return nil, fmt.Errorf("Deserializing value for key '%s': %s", pieces[0], err)
 	}
 
-	return s.buildOverlay(strings.Split(pieces[0], "."), val, "kv arg"), nil
+	lib, key, err := s.libraryPathAndKey(pieces[0])
+	if err != nil {
+		return nil, err
+	}
+
+	overlay := s.buildOverlay(strings.Split(key, dvsMapKeySep), val, "kv arg")
+
+	return workspace.NewDataValuesWithOptionalLib(overlay, lib)
 }
 
 func (s *DataValuesFlags) parseYAML(data string, strict bool) (interface{}, error) {
@@ -136,8 +183,8 @@ func (s *DataValuesFlags) parseYAML(data string, strict bool) (interface{}, erro
 	return docSet.Items[0].Value, nil
 }
 
-func (s *DataValuesFlags) file(kv string) (*yamlmeta.Document, error) {
-	pieces := strings.SplitN(kv, "=", 2)
+func (s *DataValuesFlags) file(kv string) (*workspace.DataValues, error) {
+	pieces := strings.SplitN(kv, dvsKVSep, 2)
 	if len(pieces) != 2 {
 		return nil, fmt.Errorf("Expected format key=/file/path")
 	}
@@ -147,7 +194,36 @@ func (s *DataValuesFlags) file(kv string) (*yamlmeta.Document, error) {
 		return nil, fmt.Errorf("Reading file '%s'", pieces[1])
 	}
 
-	return s.buildOverlay(strings.Split(pieces[0], "."), string(contents), "key=file arg"), nil
+	lib, key, err := s.libraryPathAndKey(pieces[0])
+	if err != nil {
+		return nil, err
+	}
+
+	overlay := s.buildOverlay(strings.Split(key, dvsMapKeySep), string(contents), "key=file arg")
+
+	return workspace.NewDataValuesWithOptionalLib(overlay, lib)
+}
+
+func (DataValuesFlags) libraryPathAndKey(key string) (string, string, error) {
+	const (
+		libraryKeySep = ":"
+	)
+
+	keyPieces := strings.Split(key, libraryKeySep)
+
+	switch len(keyPieces) {
+	case 1:
+		return "", key, nil
+
+	case 2:
+		if len(keyPieces[0]) == 0 {
+			return "", "", fmt.Errorf("Expected library name to not be empty")
+		}
+		return keyPieces[0], keyPieces[1], nil
+
+	default:
+		return "", "", fmt.Errorf("Expected at most one library-key separator '%s' in '%s'", libraryKeySep, key)
+	}
 }
 
 func (s *DataValuesFlags) buildOverlay(keyPieces []string, value interface{}, desc string) *yamlmeta.Document {
@@ -160,7 +236,7 @@ func (s *DataValuesFlags) buildOverlay(keyPieces []string, value interface{}, de
 	var lastMapItem *yamlmeta.MapItem
 
 	pos := filepos.NewPosition(1)
-	pos.SetFile(fmt.Sprintf("key '%s' (%s)", strings.Join(keyPieces, "."), desc))
+	pos.SetFile(fmt.Sprintf("key '%s' (%s)", strings.Join(keyPieces, dvsMapKeySep), desc))
 
 	for _, piece := range keyPieces {
 		newMap := &yamlmeta.Map{}
