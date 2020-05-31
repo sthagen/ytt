@@ -13,6 +13,7 @@ go mod vendor
 go mod tidy
 
 # build without website assets
+rm -f pkg/website/generated.go
 go build -o ytt ./cmd/ytt/...
 ./ytt version
 
@@ -24,12 +25,13 @@ build_values_path="../../${BUILD_VALUES:-./hack/build-values-default.yml}"
 	cd pkg/website
 	./../../ytt \
 		-f . \
-		-f ../../examples/playground \
+		-f ../../examples/playground/ref \
+		-f ../../examples/playground/getting-started \
 		-f $build_values_path \
 		--file-mark 'alt-example**/*:type=data' \
 		--file-mark 'example**/*:type=data' \
 		--file-mark 'generated.go.txt:exclusive-for-output=true' \
-		--output-directory ../../tmp/
+		--dangerous-emptied-output-directory ../../tmp/
 )
 mv tmp/generated.go.txt pkg/website/generated.go
 

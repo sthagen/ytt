@@ -17,15 +17,15 @@ diff ./tmp/config.yml examples/eirini/config-result.yml
 diff ./tmp/config-alt1.yml examples/eirini/config-result.yml
 
 # check directory reading
-./ytt -f examples/eirini/ --output-directory=tmp/eirini
+./ytt -f examples/eirini/ --dangerous-emptied-output-directory=tmp/eirini
 diff ./tmp/eirini/config-alt2.yml examples/eirini/config-result.yml
 
 # check playground examples
-for name in $(ls examples/playground/); do
+for name in $(ls examples/playground/ref/); do
   if [ "$name" != "example-assert" ] && \
     [ "$name" != "example-load-custom-library" ] && \
     [ "$name" != "example-ytt-library-module" ]; then
-      ./ytt -f examples/playground/${name} > /dev/null
+      ./ytt -f examples/playground/ref/${name} > /dev/null
   fi
 done
 

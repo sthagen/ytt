@@ -20,8 +20,9 @@ type RegularFilesSourceOpts struct {
 	files     []string
 	fileMarks []string
 
-	outputDir  string
-	outputType string
+	outputDir   string
+	outputFiles string
+	outputType  string
 
 	files.SymlinkAllowOpts
 }
@@ -29,7 +30,10 @@ type RegularFilesSourceOpts struct {
 func (s *RegularFilesSourceOpts) Set(cmd *cobra.Command) {
 	cmd.Flags().StringArrayVarP(&s.files, "file", "f", nil, "File (ie local path, HTTP URL, -) (can be specified multiple times)")
 
-	cmd.Flags().StringVar(&s.outputDir, "output-directory", "", "Output destination directory")
+	cmd.Flags().StringVar(&s.outputDir, "dangerous-emptied-output-directory", "",
+		"Delete given directory, and then create it with output files")
+	cmd.Flags().StringVar(&s.outputFiles, "output-files", "", "Add output files to given directory")
+
 	cmd.Flags().StringVarP(&s.outputType, "output", "o", regularFilesOutputTypeYAML, "Output type (yaml, json, pos)")
 
 	cmd.Flags().BoolVar(&s.SymlinkAllowOpts.AllowAll, "dangerous-allow-all-symlink-destinations", false,
@@ -64,8 +68,11 @@ func (s *RegularFilesSource) Output(out TemplateOutput) error {
 		return out.Err
 	}
 
-	if len(s.opts.outputDir) > 0 {
+	switch {
+	case len(s.opts.outputDir) > 0:
 		return files.NewOutputDirectory(s.opts.outputDir, out.Files, s.ui).Write()
+	case len(s.opts.outputFiles) > 0:
+		return files.NewOutputDirectory(s.opts.outputFiles, out.Files, s.ui).WriteFiles()
 	}
 
 	var printerFunc func(io.Writer) yamlmeta.DocumentPrinter

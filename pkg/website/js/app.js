@@ -66,6 +66,25 @@ function NewTemplates(parentEl, templatesOpts) {
     }
   }
 
+  function setFiles(files) {
+    files.sort(function(a,b) {
+      var aIsReadme = a.name.startsWith("README.");
+      var bIsReadme = b.name.startsWith("README.");
+      // 1 indicates b precedes a
+      if (aIsReadme && bIsReadme) { return a.name > b.name ? 1 : -1 }
+      if (aIsReadme && !bIsReadme) { return -1 }
+      if (!aIsReadme && bIsReadme) { return 1 }
+      if (!aIsReadme && !bIsReadme) { return a.name > b.name ? 1 : -1 }
+      throw "unreachable";
+    })
+
+    resetFiles();
+    for (var j in files) {
+      addFile(null, files[j])
+    }
+    evaluate();
+  }
+
   var latestReqId = 0;
   var lastAppliedReqId = -1;
 
@@ -151,6 +170,7 @@ function NewTemplates(parentEl, templatesOpts) {
     resetFiles: resetFiles,
     addFile: addFile,
     evaluate: evaluate,
+    setFiles: setFiles,
   }
 }
 
@@ -163,14 +183,14 @@ function NewExamples(parentEl, templates, exampleLocation, blocker) {
 
       if (opts.preDoneCallback) opts.preDoneCallback(id);
 
-      templates.resetFiles();
+      var files = [];
       for (var j in content.files) {
-        templates.addFile(null, {
+        files.push({
           name: content.files[j].name,
           text: content.files[j].content
         });
       }
-      templates.evaluate();
+      templates.setFiles(files);
 
       blocker.off();
       if (opts.scrollIntoView) parentEl[0].scrollIntoView();
@@ -178,25 +198,45 @@ function NewExamples(parentEl, templates, exampleLocation, blocker) {
   }
 
   $.get("/examples", function(data) {
-    var examples = JSON.parse(data);
+    var exampleSets = JSON.parse(data);
 
-    for (var i = 0; i < examples.length; i++) {
-      $(".dropdown-content", parentEl).append(
-        '<li><a class="item" href="#" data-example-id="' + 
-        examples[i].id + '">' + examples[i].display_name + '</a></li>');
-    }
+    exampleSets.forEach(exampleSet => {
 
-    $('.dropdown-content .item', parentEl).click(function(e){
-      var example = $(this).data("example-id");
-      load(example, {scrollIntoView: true});
-      exampleLocation.set(example);
-      return false;
-    });
+      $(".button-container").append(
+          '<button type="button" class="button example-set-button" name="' + exampleSet.id + '">' +
+           exampleSet.display_name + '</button>'
+      );
 
-    $(".dropdown button", parentEl).click(function() {
-      $(this).parents(".dropdown").toggleClass("expanded");
-      return false;
-    }).click();
+      $('button[name="' + exampleSet.id + '"]', parentEl).click(function () {
+        $('.example-set#example-set-' + exampleSet.id).toggleClass("expanded");
+        $('.example-set-button[name="' + exampleSet.id + '"]').toggleClass("expanded");
+        return false;
+      });
+
+      $(".example-sets").append(
+          '<div class="example-set" id="example-set-' + exampleSet.id + '">' +
+            '<h3 class="example-set-name">' + exampleSet.display_name + '</h3>' +
+            '<p class="example-set-description">' + exampleSet.description + '</p>' +
+            '<ol class="dropdown-content" id="' + exampleSet.id + '"></ol>' +
+          '</div>'
+      );
+
+      var examples = exampleSet.examples
+      for (var i = 0; i < examples.length; i++) {
+        $("ol#" + exampleSet.id, parentEl).append(
+            '<li><a class="item" href="#" data-example-id="' +
+            examples[i].id + '">' + examples[i].display_name + '</a></li>');
+      }
+
+      $('.dropdown-content .item', parentEl).click(function (e) {
+        var example = $(this).data("example-id");
+        load(example, {scrollIntoView: true});
+        exampleLocation.set(example);
+        return false;
+      });
+    })
+    
+    $('button[name="' + exampleSets[0].id + '"]', parentEl).click();
   });
 
   return {
@@ -211,14 +251,14 @@ function NewGist(parentEl, templates, gistLocation, blocker) {
     $.get('https://api.github.com/gists/' + id, function(data) {
       if (opts.preDoneCallback) opts.preDoneCallback(id);
 
-      templates.resetFiles();
+      var files = [];
       for (var j in data.files) {
-        templates.addFile(null, {
+        files.push({
           name: data.files[j].filename,
           text: data.files[j].content
-        });
+        })
       }
-      templates.evaluate();
+      templates.setFiles(files);
 
       blocker.off();
       if (opts.scrollIntoView) parentEl[0].scrollIntoView();
