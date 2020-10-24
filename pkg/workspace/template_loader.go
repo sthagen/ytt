@@ -23,15 +23,22 @@ type TemplateLoader struct {
 	opts               TemplateLoaderOpts
 	compiledTemplates  map[string]*template.CompiledTemplate
 	libraryExecFactory *LibraryExecutionFactory
+	schema             yamlmeta.Schema
 }
 
 type TemplateLoaderOpts struct {
-	IgnoreUnknownComments bool
-	StrictYAML            bool
+	IgnoreUnknownComments   bool
+	ImplicitMapKeyOverrides bool
+	StrictYAML              bool
 }
 
-func NewTemplateLoader(values *DataValues, libraryValuess []*DataValues, ui files.UI, opts TemplateLoaderOpts,
-	libraryExecFactory *LibraryExecutionFactory) *TemplateLoader {
+type TemplateLoaderOptsOverrides struct {
+	IgnoreUnknownComments   *bool
+	ImplicitMapKeyOverrides *bool
+	StrictYAML              *bool
+}
+
+func NewTemplateLoader(values *DataValues, libraryValuess []*DataValues, ui files.UI, opts TemplateLoaderOpts, libraryExecFactory *LibraryExecutionFactory, schema yamlmeta.Schema) *TemplateLoader {
 
 	if values == nil {
 		panic("Expected values to be non-nil")
@@ -44,6 +51,7 @@ func NewTemplateLoader(values *DataValues, libraryValuess []*DataValues, ui file
 		opts:               opts,
 		compiledTemplates:  map[string]*template.CompiledTemplate{},
 		libraryExecFactory: libraryExecFactory,
+		schema:             schema,
 	}
 }
 
@@ -155,7 +163,10 @@ func (l *TemplateLoader) EvalYAML(libraryCtx LibraryExecutionContext, file *file
 		return nil, docSet, nil
 	}
 
-	tplOpts := yamltemplate.TemplateOpts{IgnoreUnknownComments: l.opts.IgnoreUnknownComments}
+	tplOpts := yamltemplate.TemplateOpts{
+		IgnoreUnknownComments:   l.opts.IgnoreUnknownComments,
+		ImplicitMapKeyOverrides: l.opts.ImplicitMapKeyOverrides,
+	}
 
 	compiledTemplate, err := yamltemplate.NewTemplate(file.RelativePath(), tplOpts).Compile(docSet)
 	if err != nil {
@@ -175,7 +186,17 @@ func (l *TemplateLoader) EvalYAML(libraryCtx LibraryExecutionContext, file *file
 	if err != nil {
 		return nil, nil, err
 	}
-
+	if _, ok := l.schema.(yamlmeta.AnySchema); !ok {
+		var outerTypeCheck yamlmeta.TypeCheck
+		for _, doc := range resultVal.(*yamlmeta.DocumentSet).Items {
+			l.schema.AssignType(doc)
+			typeCheck := doc.Check()
+			outerTypeCheck.Violations = append(outerTypeCheck.Violations, typeCheck.Violations...)
+		}
+		if len(outerTypeCheck.Violations) > 0 {
+			return globals, resultVal.(*yamlmeta.DocumentSet), fmt.Errorf("Typechecking violations found: %v", outerTypeCheck.Violations)
+		}
+	}
 	return globals, resultVal.(*yamlmeta.DocumentSet), nil
 }
 
@@ -305,4 +326,18 @@ func (l *TemplateLoader) newThread(libraryCtx LibraryExecutionContext,
 
 func (l *TemplateLoader) addCompiledTemplate(path string, ct *template.CompiledTemplate) {
 	l.compiledTemplates[path] = ct
+}
+
+func (opts TemplateLoaderOpts) Merge(overrides TemplateLoaderOptsOverrides) TemplateLoaderOpts {
+	optsCopy := opts
+	if overrides.IgnoreUnknownComments != nil {
+		optsCopy.IgnoreUnknownComments = *overrides.IgnoreUnknownComments
+	}
+	if overrides.ImplicitMapKeyOverrides != nil {
+		optsCopy.ImplicitMapKeyOverrides = *overrides.ImplicitMapKeyOverrides
+	}
+	if overrides.StrictYAML != nil {
+		optsCopy.StrictYAML = *overrides.StrictYAML
+	}
+	return optsCopy
 }

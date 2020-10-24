@@ -6,32 +6,7 @@ Following modules are included with `ytt`.
 
 ### struct
 
-```python
-load("@ytt:struct", "struct")
-
-st = struct.make(field1=123, field2={"key": "val"})
-st.field1 # 123
-st.field2 # {"key": "val"}
-
-def _add_method(num, right):
-  return num.val + right
-end
-
-num123 = struct.make(val=123)
-
-calc = struct.make(add=struct.bind(_add_method, num123))
-calc.add(3) # 126
-
-# make_and_bind automatically binds any callable value to given object
-calc = struct.make_and_bind(num123, add=_add_method)
-calc.add(3) # 126
-
-struct.encode({"a": [1,2,3,{"c":456}], "b": "str"})      # struct with contents
-struct.decode(struct.make(a=[1,2,3,{"c":456}], b="str")) # plain values extracted from struct
-
-# plain values extracted from data.values struct
-struct.decode(data.values) # {...}
-```
+See [@ytt:struct module docs](lang-ref-ytt-struct.md).
 
 ### assert
 
@@ -66,7 +41,16 @@ data.list("/data/data.txt") # read file
 load("@ytt:regexp", "regexp")
 
 regexp.match("[a-z]+[0-9]+", "__hello123__") # True
+
+regexp.replace("[a-z]+[0-9]+", "__hello123__", "foo")                 # __foo__
+regexp.replace("(?i)[a-z]+[0-9]+", "__hello123__HI456__", "bye")      # __bye__bye__
+regexp.replace("([a-z]+)[0-9]+", "__hello123__bye123__", "$1")        # __hello__bye__
+regexp.replace("[a-z]+[0-9]+", "__hello123__", lambda s: str(len(s))) # __8__
 ```
+
+See the [RE2 docs](https://github.com/google/re2/wiki/Syntax) for more on the regex syntax supported.
+
+Note that you can pass either a string or a lambda function as the third parameter. When given a string, `$` symbols are expanded, so that `$1` expands to the first submatch. When given a lambda function, the match is directly replaced by the result of the function.
 
 ### url
 
