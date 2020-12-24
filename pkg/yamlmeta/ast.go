@@ -44,35 +44,36 @@ type DocumentSet struct {
 }
 
 type Document struct {
+	Type     Type
 	Metas    []*Meta
 	Value    interface{}
 	Position *filepos.Position
-	Type     interface{}
 
 	annotations interface{}
 	injected    bool // indicates that Document was not present in the parsed content
 }
 
 type Map struct {
+	Type     Type
 	Metas    []*Meta
 	Items    []*MapItem
 	Position *filepos.Position
-	Type     *MapType
 
 	annotations interface{}
 }
 
 type MapItem struct {
+	Type     Type
 	Metas    []*Meta
 	Key      interface{}
 	Value    interface{}
 	Position *filepos.Position
-	Type     interface{}
 
 	annotations interface{}
 }
 
 type Array struct {
+	Type     Type
 	Metas    []*Meta
 	Items    []*ArrayItem
 	Position *filepos.Position
@@ -81,11 +82,16 @@ type Array struct {
 }
 
 type ArrayItem struct {
+	Type     Type
 	Metas    []*Meta
 	Value    interface{}
 	Position *filepos.Position
 
 	annotations interface{}
+}
+
+type Scalar struct {
+	Value interface{}
 }
 
 type Meta struct {

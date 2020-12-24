@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/k14s/difflib"
 	"github.com/k14s/ytt/pkg/yamlfmt"
 	"github.com/k14s/ytt/pkg/yamlmeta"
 )
@@ -111,7 +112,8 @@ func evalTemplate(t *testing.T, data string) (string, *testErr) {
 
 func expectEquals(t *testing.T, resultStr, expectedStr string) error {
 	if resultStr != expectedStr {
-		return fmt.Errorf("not equal\n\n### result %d chars:\n>>>%s<<<\n###expected %d chars:\n>>>%s<<<", len(resultStr), resultStr, len(expectedStr), expectedStr)
+		diff := difflib.PPDiff(strings.Split(expectedStr, "\n"), strings.Split(resultStr, "\n"))
+		return fmt.Errorf("Not equal; diff expected...actual:\n%v\n", diff)
 	}
 	return nil
 }

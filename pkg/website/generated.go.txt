@@ -1,3 +1,6 @@
+// Copyright 2020 VMware, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 package website
 
 (@
@@ -72,6 +75,7 @@ exampleSets = [
           {"id": "example-edit-map-value"},
           {"id": "example-remove-map-item"},
           {"id": "example-rename-key-in-map"},
+          {"id": "example-append-map-to-array"},
         ]
   },
   { "id": "getting-started",

@@ -5,7 +5,9 @@ package yamlmeta_test
 
 import (
 	"fmt"
+	"github.com/k14s/difflib"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/k14s/ytt/pkg/filepos"
@@ -36,9 +38,7 @@ func TestParserDocSetEmpty(t *testing.T) {
 	parsedValStr := printer.PrintStr(parsedVal)
 	expectedValStr := printer.PrintStr(expectedVal)
 
-	if parsedValStr != expectedValStr {
-		t.Fatalf("not equal\nparsed:\n%sexpected:\n%s", parsedValStr, expectedValStr)
-	}
+	assertEqual(t, parsedValStr, expectedValStr)
 }
 
 func TestParserDocSetNewline(t *testing.T) {
@@ -63,9 +63,7 @@ func TestParserDocSetNewline(t *testing.T) {
 	parsedValStr := printer.PrintStr(parsedVal)
 	expectedValStr := printer.PrintStr(expectedVal)
 
-	if parsedValStr != expectedValStr {
-		t.Fatalf("not equal\nparsed:\n%sexpected:\n%s", parsedValStr, expectedValStr)
-	}
+	assertEqual(t, parsedValStr, expectedValStr)
 }
 
 func TestParserOnlyComment(t *testing.T) {
@@ -123,9 +121,7 @@ func TestParserDoc(t *testing.T) {
 	parsedValStr := printer.PrintStr(parsedVal)
 	expectedValStr := printer.PrintStr(expectedVal)
 
-	if parsedValStr != expectedValStr {
-		t.Fatalf("not equal\nparsed:\n%sexpected:\n%s", parsedValStr, expectedValStr)
-	}
+	assertEqual(t, parsedValStr, expectedValStr)
 }
 
 func TestParserDocWithoutDashes(t *testing.T) {
@@ -143,7 +139,7 @@ func TestParserDocWithoutDashes(t *testing.T) {
 					Items: []*yamlmeta.MapItem{
 						&yamlmeta.MapItem{Key: "key", Value: 1, Position: filepos.NewPosition(1)},
 					},
-					Position: filepos.NewUnknownPosition(),
+					Position: filepos.NewPosition(1),
 				},
 				Position: filepos.NewPosition(1),
 			},
@@ -156,9 +152,7 @@ func TestParserDocWithoutDashes(t *testing.T) {
 	parsedValStr := printer.PrintStr(parsedVal)
 	expectedValStr := printer.PrintStr(expectedVal)
 
-	if parsedValStr != expectedValStr {
-		t.Fatalf("not equal\nparsed:\n%sexpected:\n%s", parsedValStr, expectedValStr)
-	}
+	assertEqual(t, parsedValStr, expectedValStr)
 }
 
 func TestParserRootValue(t *testing.T) {
@@ -193,7 +187,7 @@ func TestParserRootValue(t *testing.T) {
 							Items: []*yamlmeta.ArrayItem{
 								&yamlmeta.ArrayItem{Value: 1, Position: filepos.NewPosition(1)},
 							},
-							Position: filepos.NewUnknownPosition(),
+							Position: filepos.NewPosition(1),
 						},
 						Position: filepos.NewPosition(1),
 					},
@@ -209,7 +203,7 @@ func TestParserRootValue(t *testing.T) {
 							Items: []*yamlmeta.MapItem{
 								&yamlmeta.MapItem{Key: "key", Value: "val", Position: filepos.NewPosition(1)},
 							},
-							Position: filepos.NewUnknownPosition(),
+							Position: filepos.NewPosition(1),
 						},
 						Position: filepos.NewPosition(1),
 					},
@@ -276,17 +270,17 @@ array:
 													Position: filepos.NewPosition(5),
 												},
 											},
-											Position: filepos.NewUnknownPosition(),
+											Position: filepos.NewPosition(5),
 										},
 										Position: filepos.NewPosition(5),
 									},
 								},
-								Position: filepos.NewUnknownPosition(),
+								Position: filepos.NewPosition(2),
 							},
 							Position: filepos.NewPosition(2),
 						},
 					},
-					Position: filepos.NewUnknownPosition(),
+					Position: filepos.NewPosition(1),
 				},
 				Position: filepos.NewPosition(1),
 			},
@@ -299,9 +293,7 @@ array:
 	parsedValStr := printer.PrintStr(parsedVal)
 	expectedValStr := printer.PrintStr(expectedVal)
 
-	if parsedValStr != expectedValStr {
-		t.Fatalf("not equal\nparsed:\n%sexpected:\n%s", parsedValStr, expectedValStr)
-	}
+	assertEqual(t, parsedValStr, expectedValStr)
 }
 
 func TestParserMapComments(t *testing.T) {
@@ -351,12 +343,12 @@ map:
 										Position: filepos.NewPosition(8),
 									},
 								},
-								Position: filepos.NewUnknownPosition(),
+								Position: filepos.NewPosition(3),
 							},
 							Position: filepos.NewPosition(3),
 						},
 					},
-					Position: filepos.NewUnknownPosition(),
+					Position: filepos.NewPosition(1),
 				},
 				Position: filepos.NewPosition(1),
 			},
@@ -369,9 +361,7 @@ map:
 	parsedValStr := printer.PrintStr(parsedVal)
 	expectedValStr := printer.PrintStr(expectedVal)
 
-	if parsedValStr != expectedValStr {
-		t.Fatalf("not equal\nparsed:\n%sexpected:\n%s", parsedValStr, expectedValStr)
-	}
+	assertEqual(t, parsedValStr, expectedValStr)
 }
 
 func TestParserArrayComments(t *testing.T) {
@@ -443,7 +433,7 @@ array:
 													Position: filepos.NewPosition(12),
 												},
 											},
-											Position: filepos.NewUnknownPosition(),
+											Position: filepos.NewPosition(10),
 										},
 										Position: filepos.NewPosition(10),
 									},
@@ -459,17 +449,17 @@ array:
 													Position: filepos.NewPosition(14),
 												},
 											},
-											Position: filepos.NewUnknownPosition(),
+											Position: filepos.NewPosition(14),
 										},
 										Position: filepos.NewPosition(14),
 									},
 								},
-								Position: filepos.NewUnknownPosition(),
+								Position: filepos.NewPosition(2),
 							},
 							Position: filepos.NewPosition(2),
 						},
 					},
-					Position: filepos.NewUnknownPosition(),
+					Position: filepos.NewPosition(1),
 				},
 				Position: filepos.NewPosition(1),
 			},
@@ -482,9 +472,7 @@ array:
 	parsedValStr := printer.PrintStr(parsedVal)
 	expectedValStr := printer.PrintStr(expectedVal)
 
-	if parsedValStr != expectedValStr {
-		t.Fatalf("not equal\nparsed:\n%sexpected:\n%s", parsedValStr, expectedValStr)
-	}
+	assertEqual(t, parsedValStr, expectedValStr)
 }
 
 func TestParserDocSetComments(t *testing.T) {
@@ -529,9 +517,7 @@ func TestParserDocSetComments(t *testing.T) {
 	parsedValStr := printer.PrintStr(parsedVal)
 	expectedValStr := printer.PrintStr(expectedVal)
 
-	if parsedValStr != expectedValStr {
-		t.Fatalf("not equal\nparsed:\n%sexpected:\n%s", parsedValStr, expectedValStr)
-	}
+	assertEqual(t, parsedValStr, expectedValStr)
 }
 
 func TestParserDocSetOnlyComments2(t *testing.T) {
@@ -562,9 +548,7 @@ func TestParserDocSetOnlyComments2(t *testing.T) {
 	parsedValStr := printer.PrintStr(parsedVal)
 	expectedValStr := printer.PrintStr(expectedVal)
 
-	if parsedValStr != expectedValStr {
-		t.Fatalf("not equal\nparsed:\n%sexpected:\n%s", parsedValStr, expectedValStr)
-	}
+	assertEqual(t, parsedValStr, expectedValStr)
 }
 
 func TestParserDocSetOnlyComments3(t *testing.T) {
@@ -592,9 +576,7 @@ func TestParserDocSetOnlyComments3(t *testing.T) {
 	parsedValStr := printer.PrintStr(parsedVal)
 	expectedValStr := printer.PrintStr(expectedVal)
 
-	if parsedValStr != expectedValStr {
-		t.Fatalf("not equal\nparsed:\n%sexpected:\n%s", parsedValStr, expectedValStr)
-	}
+	assertEqual(t, parsedValStr, expectedValStr)
 }
 
 func TestParserDocSetOnlyComments(t *testing.T) {
@@ -625,9 +607,7 @@ func TestParserDocSetOnlyComments(t *testing.T) {
 	parsedValStr := printer.PrintStr(parsedVal)
 	expectedValStr := printer.PrintStr(expectedVal)
 
-	if parsedValStr != expectedValStr {
-		t.Fatalf("not equal\nparsed:\n%sexpected:\n%s", parsedValStr, expectedValStr)
-	}
+	assertEqual(t, parsedValStr, expectedValStr)
 }
 
 func TestParserDocSetCommentsNoFirstDashes(t *testing.T) {
@@ -671,9 +651,7 @@ func TestParserDocSetCommentsNoFirstDashes(t *testing.T) {
 	parsedValStr := printer.PrintStr(parsedVal)
 	expectedValStr := printer.PrintStr(expectedVal)
 
-	if parsedValStr != expectedValStr {
-		t.Fatalf("not equal\nparsed:\n%sexpected:\n%s", parsedValStr, expectedValStr)
-	}
+	assertEqual(t, parsedValStr, expectedValStr)
 }
 
 func TestParserUnindentedComment(t *testing.T) {
@@ -712,12 +690,12 @@ key:
 										Position: filepos.NewPosition(5),
 									},
 								},
-								Position: filepos.NewUnknownPosition(),
+								Position: filepos.NewPosition(2),
 							},
 							Position: filepos.NewPosition(2),
 						},
 					},
-					Position: filepos.NewUnknownPosition(),
+					Position: filepos.NewPosition(1),
 				},
 				Position: filepos.NewPosition(1),
 			},
@@ -730,9 +708,7 @@ key:
 	parsedValStr := printer.PrintStr(parsedVal)
 	expectedValStr := printer.PrintStr(expectedVal)
 
-	if parsedValStr != expectedValStr {
-		t.Fatalf("not equal\nparsed:\n%sexpected:\n%s", parsedValStr, expectedValStr)
-	}
+	assertEqual(t, parsedValStr, expectedValStr)
 }
 
 func TestParserInvalidDoc(t *testing.T) {
@@ -805,11 +781,12 @@ anchored_value: *value
 													Position: filepos.NewPosition(8),
 												},
 											},
+											Position: filepos.NewPosition(6),
 										},
 										Position: filepos.NewPosition(6),
 									},
 								},
-								Position: filepos.NewUnknownPosition(),
+								Position: filepos.NewPosition(3),
 							},
 							Position: filepos.NewPosition(3),
 						},
@@ -842,16 +819,17 @@ anchored_value: *value
 													Position: filepos.NewPosition(8),
 												},
 											},
+											Position: filepos.NewPosition(6),
 										},
 										Position: filepos.NewPosition(6),
 									},
 								},
-								Position: filepos.NewUnknownPosition(),
+								Position: filepos.NewPosition(9),
 							},
 							Position: filepos.NewPosition(9),
 						},
 					},
-					Position: filepos.NewUnknownPosition(),
+					Position: filepos.NewPosition(1),
 				},
 				Position: filepos.NewPosition(1),
 			},
@@ -914,11 +892,12 @@ merged_value:
 													Position: filepos.NewPosition(8),
 												},
 											},
+											Position: filepos.NewPosition(6),
 										},
 										Position: filepos.NewPosition(6),
 									},
 								},
-								Position: filepos.NewUnknownPosition(),
+								Position: filepos.NewPosition(3),
 							},
 							Position: filepos.NewPosition(3),
 						},
@@ -951,6 +930,7 @@ merged_value:
 													Position: filepos.NewPosition(8),
 												},
 											},
+											Position: filepos.NewPosition(6),
 										},
 										Position: filepos.NewPosition(6),
 									},
@@ -960,12 +940,12 @@ merged_value:
 										Position: filepos.NewPosition(11),
 									},
 								},
-								Position: filepos.NewUnknownPosition(),
+								Position: filepos.NewPosition(9),
 							},
 							Position: filepos.NewPosition(9),
 						},
 					},
-					Position: filepos.NewUnknownPosition(),
+					Position: filepos.NewPosition(1),
 				},
 				Position: filepos.NewPosition(1),
 			},
@@ -1027,10 +1007,7 @@ func (ex parserExample) checkDocSet(t *testing.T, parsedVal *yamlmeta.DocumentSe
 	parsedValStr := printer.PrintStr(parsedVal)
 	expectedValStr := printer.PrintStr(ex.Expected)
 
-	if parsedValStr != expectedValStr {
-		t.Errorf("%s: not equal\nparsed:\n%s\nexpected:\n%s",
-			ex.Description, parsedValStr, expectedValStr)
-	}
+	assertEqual(t, parsedValStr, expectedValStr)
 }
 
 func (ex parserExample) checkErr(t *testing.T, err error) {
@@ -1041,7 +1018,11 @@ func (ex parserExample) checkErr(t *testing.T, err error) {
 	parsedValStr := err.Error()
 	expectedValStr := ex.ExpectedErr
 
+	assertEqual(t, parsedValStr, expectedValStr)
+}
+
+func assertEqual(t *testing.T, parsedValStr string, expectedValStr string) {
 	if parsedValStr != expectedValStr {
-		t.Fatalf("not equal\nparsed:\n%s\nexpected:\n%s", parsedValStr, expectedValStr)
+		t.Fatalf("Not equal; diff expected...actual:\n%v\n", difflib.PPDiff(strings.Split(expectedValStr, "\n"), strings.Split(parsedValStr, "\n")))
 	}
 }

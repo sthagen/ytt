@@ -23,7 +23,7 @@ type TemplateLoader struct {
 	opts               TemplateLoaderOpts
 	compiledTemplates  map[string]*template.CompiledTemplate
 	libraryExecFactory *LibraryExecutionFactory
-	schema             yamlmeta.Schema
+	schema             Schema
 }
 
 type TemplateLoaderOpts struct {
@@ -38,7 +38,7 @@ type TemplateLoaderOptsOverrides struct {
 	StrictYAML              *bool
 }
 
-func NewTemplateLoader(values *DataValues, libraryValuess []*DataValues, ui files.UI, opts TemplateLoaderOpts, libraryExecFactory *LibraryExecutionFactory, schema yamlmeta.Schema) *TemplateLoader {
+func NewTemplateLoader(values *DataValues, libraryValuess []*DataValues, ui files.UI, opts TemplateLoaderOpts, libraryExecFactory *LibraryExecutionFactory, schema Schema) *TemplateLoader {
 
 	if values == nil {
 		panic("Expected values to be non-nil")
@@ -74,7 +74,7 @@ func (l *TemplateLoader) Load(thread *starlark.Thread, module string) (starlark.
 		pieces := strings.SplitN(module[1:], ":", 2)
 		if len(pieces) != 2 {
 			return nil, fmt.Errorf("Expected library path to be in format '@name:path' " +
-				"e.g. '@github.com/k14s/test:test.star' or '@ytt:base64'")
+				"e.g. '@github.com/vmware-tanzu/test:test.star' or '@ytt:base64'")
 		}
 
 		if pieces[0] == "ytt" {
@@ -185,17 +185,6 @@ func (l *TemplateLoader) EvalYAML(libraryCtx LibraryExecutionContext, file *file
 	globals, resultVal, err := compiledTemplate.Eval(thread, l)
 	if err != nil {
 		return nil, nil, err
-	}
-	if _, ok := l.schema.(yamlmeta.AnySchema); !ok {
-		var outerTypeCheck yamlmeta.TypeCheck
-		for _, doc := range resultVal.(*yamlmeta.DocumentSet).Items {
-			l.schema.AssignType(doc)
-			typeCheck := doc.Check()
-			outerTypeCheck.Violations = append(outerTypeCheck.Violations, typeCheck.Violations...)
-		}
-		if len(outerTypeCheck.Violations) > 0 {
-			return globals, resultVal.(*yamlmeta.DocumentSet), fmt.Errorf("Typechecking violations found: %v", outerTypeCheck.Violations)
-		}
 	}
 	return globals, resultVal.(*yamlmeta.DocumentSet), nil
 }

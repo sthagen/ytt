@@ -15,10 +15,11 @@ import (
 )
 
 type ServerOpts struct {
-	ListenAddr   string
-	CheckCookie  bool
-	TemplateFunc func([]byte) ([]byte, error)
-	ErrorFunc    func(error) ([]byte, error)
+	ListenAddr      string
+	RedirectToHTTPs bool
+	CheckCookie     bool
+	TemplateFunc    func([]byte) ([]byte, error)
+	ErrorFunc       func(error) ([]byte, error)
 }
 
 type Server struct {
@@ -33,10 +34,10 @@ func (s *Server) Mux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.redirectToHTTPs(s.noCacheHandler(s.mainHandler)))
 	mux.HandleFunc("/js/", s.redirectToHTTPs(s.noCacheHandler(s.assetHandler)))
-	mux.HandleFunc("/examples", s.redirectToHTTPs(s.noCacheHandler(s.exampleSetsHandler)))
-	mux.HandleFunc("/examples/", s.redirectToHTTPs(s.noCacheHandler(s.examplesHandler)))
+	mux.HandleFunc("/examples", s.redirectToHTTPs(s.noCacheHandler(s.corsHandler(s.exampleSetsHandler))))
+	mux.HandleFunc("/examples/", s.redirectToHTTPs(s.noCacheHandler(s.corsHandler(s.examplesHandler))))
 	// no need for caching as it's a POST
-	mux.HandleFunc("/template", s.redirectToHTTPs(s.templateHandler))
+	mux.HandleFunc("/template", s.redirectToHTTPs(s.corsHandler(s.templateHandler)))
 	mux.HandleFunc("/alpha-test", s.redirectToHTTPs(s.noCacheHandler(s.alphaTestHandler)))
 	mux.HandleFunc("/health", s.healthHandler)
 	return mux
@@ -110,7 +111,7 @@ func (s *Server) examplesHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	s.logError(w, fmt.Errorf("Did not find example"))
+	s.logError(w, fmt.Errorf("Did not find example: %v", strings.TrimPrefix(r.URL.Path, "/examples/")))
 }
 
 func (s *Server) templateHandler(w http.ResponseWriter, r *http.Request) {
@@ -150,6 +151,9 @@ func (s *Server) write(w http.ResponseWriter, data []byte) {
 }
 
 func (s *Server) redirectToHTTPs(wrappedFunc func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+	if !s.opts.RedirectToHTTPs {
+		return wrappedFunc
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		checkHTTPs := true
 		clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -195,6 +199,14 @@ func (s *Server) noCacheHandler(wrappedFunc func(http.ResponseWriter, *http.Requ
 			w.Header().Set(k, v)
 		}
 
+		wrappedFunc(w, r)
+	}
+}
+
+func (s *Server) corsHandler(wrappedFunc func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "*")
 		wrappedFunc(w, r)
 	}
 }

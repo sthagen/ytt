@@ -144,6 +144,7 @@ func (n *Array) GetValues() []interface{} {
 }
 
 func (n *ArrayItem) GetValues() []interface{} { return []interface{}{n.Value} }
+func (s *Scalar) GetValues() []interface{}    { return []interface{}{s.Value} }
 
 func (n *DocumentSet) GetMetas() []*Meta { return n.Metas }
 func (n *Document) GetMetas() []*Meta    { return n.Metas }
@@ -154,10 +155,14 @@ func (n *ArrayItem) GetMetas() []*Meta   { return n.Metas }
 
 func (n *DocumentSet) addMeta(meta *Meta) { n.Metas = append(n.Metas, meta) }
 func (n *Document) addMeta(meta *Meta)    { n.Metas = append(n.Metas, meta) }
-func (n *Map) addMeta(meta *Meta)         { n.Metas = append(n.Metas, meta) }
-func (n *MapItem) addMeta(meta *Meta)     { n.Metas = append(n.Metas, meta) }
-func (n *Array) addMeta(meta *Meta)       { n.Metas = append(n.Metas, meta) }
-func (n *ArrayItem) addMeta(meta *Meta)   { n.Metas = append(n.Metas, meta) }
+func (n *Map) addMeta(meta *Meta) {
+	panic(fmt.Sprintf("Attempted to attach metadata (%s) to Map (%v); maps cannot carry metadata", meta.Data, n))
+}
+func (n *MapItem) addMeta(meta *Meta) { n.Metas = append(n.Metas, meta) }
+func (n *Array) addMeta(meta *Meta) {
+	panic(fmt.Sprintf("Attempted to attach metadata (%s) to Array (%v); arrays cannot carry metadata", meta.Data, n))
+}
+func (n *ArrayItem) addMeta(meta *Meta) { n.Metas = append(n.Metas, meta) }
 
 func (n *DocumentSet) GetAnnotations() interface{} { return n.annotations }
 func (n *Document) GetAnnotations() interface{}    { return n.annotations }
@@ -172,6 +177,105 @@ func (n *Map) SetAnnotations(anns interface{})         { n.annotations = anns }
 func (n *MapItem) SetAnnotations(anns interface{})     { n.annotations = anns }
 func (n *Array) SetAnnotations(anns interface{})       { n.annotations = anns }
 func (n *ArrayItem) SetAnnotations(anns interface{})   { n.annotations = anns }
+
+type TypeCheck struct {
+	Violations []string
+}
+
+func (tc *TypeCheck) HasViolations() bool {
+	return len(tc.Violations) > 0
+}
+
+func (n *Document) Check() (chk TypeCheck) {
+	switch typedContents := n.Value.(type) {
+	case Node:
+		chk = typedContents.Check()
+	}
+
+	return
+}
+func (n *Map) Check() (chk TypeCheck) {
+	check := n.Type.CheckType(n, "")
+	if check.HasViolations() {
+		chk.Violations = append(chk.Violations, check.Violations...)
+		return
+	}
+
+	for _, item := range n.Items {
+		check = item.Check()
+		if check.HasViolations() {
+			chk.Violations = append(chk.Violations, check.Violations...)
+		}
+	}
+	return
+}
+func (n *MapItem) Check() (chk TypeCheck) {
+	mapItemViolation := fmt.Sprintf("Map item '%s' at %s", n.Key, n.Position.AsCompactString())
+
+	check := n.Type.CheckType(n, mapItemViolation)
+	if check.HasViolations() {
+		chk.Violations = check.Violations
+		return
+	}
+
+	// If the current value of the item is null
+	// there is no extra validation needed Type wise
+	if n.Value == nil {
+		return
+	}
+
+	check = checkCollectionItem(n.Value, n.Type.GetValueType(), mapItemViolation)
+	if check.HasViolations() {
+		chk.Violations = append(chk.Violations, check.Violations...)
+	}
+	return
+}
+func (n *Array) Check() (chk TypeCheck) {
+	for _, item := range n.Items {
+		check := item.Check()
+		if check.HasViolations() {
+			chk.Violations = append(chk.Violations, check.Violations...)
+		}
+	}
+	return
+}
+func (n *ArrayItem) Check() (chk TypeCheck) {
+	arrayItemViolation := fmt.Sprintf("Array item at %s", n.Position.AsCompactString())
+
+	// TODO: This check only ensures that the n is of ArrayItem type
+	//       which we know because if it was not we would not assign
+	//       the type to it.
+	//       Given this maybe we can completely remove this check
+	//       Lets not forget that the check of the type of the item
+	//       is done by checkCollectionItem
+	chk = n.Type.CheckType(n, arrayItemViolation)
+	if chk.HasViolations() {
+		return
+	}
+
+	check := checkCollectionItem(n.Value, n.Type.GetValueType(), arrayItemViolation)
+	if check.HasViolations() {
+		chk.Violations = append(chk.Violations, check.Violations...)
+	}
+	return chk
+}
+
+func checkCollectionItem(value interface{}, valueType Type, violationErrorMessage string) (chk TypeCheck) {
+	switch typedValue := value.(type) {
+	case *Map:
+		check := typedValue.Check()
+		chk.Violations = append(chk.Violations, check.Violations...)
+
+	case *Array:
+		check := typedValue.Check()
+		chk.Violations = append(chk.Violations, check.Violations...)
+	default:
+		chk = valueType.CheckType(&Scalar{Value: value}, violationErrorMessage)
+	}
+	return chk
+}
+
+func (n *DocumentSet) Check() TypeCheck { return TypeCheck{} }
 
 // Below methods disallow marshaling of nodes directly
 var _ []yaml.Marshaler = []yaml.Marshaler{&DocumentSet{}, &Document{}, &Map{}, &MapItem{}, &Array{}, &ArrayItem{}}

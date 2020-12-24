@@ -9,6 +9,7 @@ import (
 
 	cmdcore "github.com/k14s/ytt/pkg/cmd/core"
 	"github.com/k14s/ytt/pkg/files"
+	"github.com/k14s/ytt/pkg/schema"
 	"github.com/k14s/ytt/pkg/workspace"
 	"github.com/k14s/ytt/pkg/yamlmeta"
 	"github.com/spf13/cobra"
@@ -131,10 +132,10 @@ func (o *TemplateOptions) RunWithFiles(in TemplateInput, ui cmdcore.PlainUI) Tem
 	if err != nil {
 		return TemplateOutput{Err: err}
 	}
-	var schema yamlmeta.Schema = yamlmeta.AnySchema{}
+	var schemaVar workspace.Schema = &schema.AnySchema{}
 	if len(schemaDocs) > 0 {
 		if o.SchemaEnabled {
-			schema = yamlmeta.NewDocumentSchema(schemaDocs[0])
+			schemaVar, err = schema.NewDocumentSchema(schemaDocs[0])
 			if err != nil {
 				return TemplateOutput{Err: err}
 			}
@@ -144,12 +145,14 @@ func (o *TemplateOptions) RunWithFiles(in TemplateInput, ui cmdcore.PlainUI) Tem
 	} else {
 		if o.SchemaEnabled {
 			return TemplateOutput{Err: fmt.Errorf(
-				"Schema experiment flag was enabled but no schema document was provided. (See this propsal for details on how to include a schema document: https://github.com/k14s/design-docs/blob/develop/ytt/001-schemas/README.md#defining-a-schema-document)",
+				// TODO: Include documentation on defining a schema with this error when
+				// docs are ready.
+				"Schema experiment flag was enabled but no schema document was provided",
 			)}
 		}
 	}
 
-	values, libraryValues, err := libraryLoader.Values(valuesOverlays, schema)
+	values, libraryValues, err := libraryLoader.Values(valuesOverlays, schemaVar)
 	if err != nil {
 		return TemplateOutput{Err: err}
 	}
