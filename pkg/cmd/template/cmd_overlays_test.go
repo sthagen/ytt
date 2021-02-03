@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	cmdtpl "github.com/k14s/ytt/pkg/cmd/template"
-	cmdui "github.com/k14s/ytt/pkg/cmd/ui"
+	"github.com/k14s/ytt/pkg/cmd/ui"
 	"github.com/k14s/ytt/pkg/files"
 )
 
@@ -50,10 +50,10 @@ yamlfunc: yamlfunc`)
 		files.MustNewFileFromSource(files.NewBytesSource("funcs/funcs.lib.yml", yamlFuncsData)),
 	}
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err != nil {
 		t.Fatalf("Expected RunWithFiles to succeed, but was error: %s", out.Err)
 	}
@@ -126,10 +126,10 @@ yamlfunc: yamlfunc`)
 		files.MustNewFileFromSource(files.NewBytesSource("funcs/funcs.lib.yml", yamlFuncsData)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err != nil {
 		t.Fatalf("Expected RunWithFiles to succeed, but was error: %s", out.Err)
 	}
@@ -181,10 +181,10 @@ map: {}
 		files.MustNewFileFromSource(files.NewBytesSource("overlay2.yml", yamlOverlay2TplData)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err == nil {
 		t.Fatalf("Expected RunWithFiles to error")
 	}
@@ -221,10 +221,10 @@ overlayed: true
 		files.MustNewFileFromSource(files.NewBytesSource("overlay.yml", yamlOverlayTplData)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err == nil {
 		t.Fatalf("Expected RunWithFiles to error")
 	}
@@ -264,10 +264,10 @@ key: value_from_data_value_overlay
 		files.MustNewFileFromSource(files.NewBytesSource("datavalue_non_empty.yml", nonEmptyYamlDataValue)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err != nil {
 		t.Fatalf("Expected RunWithFiles to succeed, but was error: %s", out.Err)
 	}
@@ -314,10 +314,10 @@ array:
 		files.MustNewFileFromSource(files.NewBytesSource("datavalue.yml", yamlDataValue)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err != nil {
 		t.Fatalf("Expected RunWithFiles to succeed, but was error: %s", out.Err)
 	}

@@ -5,9 +5,9 @@ package template
 
 import (
 	"fmt"
-	ui2 "github.com/k14s/ytt/pkg/cmd/ui"
 	"io"
 
+	"github.com/k14s/ytt/pkg/cmd/ui"
 	"github.com/k14s/ytt/pkg/files"
 	"github.com/k14s/ytt/pkg/yamlmeta"
 	"github.com/spf13/cobra"
@@ -46,26 +46,26 @@ func (s *RegularFilesSourceOpts) Set(cmd *cobra.Command) {
 
 type RegularFilesSource struct {
 	opts RegularFilesSourceOpts
-	ui   ui2.UI
+	ui   ui.UI
 }
 
-func NewRegularFilesSource(opts RegularFilesSourceOpts, ui ui2.UI) *RegularFilesSource {
+func NewRegularFilesSource(opts RegularFilesSourceOpts, ui ui.UI) *RegularFilesSource {
 	return &RegularFilesSource{opts, ui}
 }
 
 func (s *RegularFilesSource) HasInput() bool  { return len(s.opts.files) > 0 }
 func (s *RegularFilesSource) HasOutput() bool { return true }
 
-func (s *RegularFilesSource) Input() (TemplateInput, error) {
+func (s *RegularFilesSource) Input() (Input, error) {
 	filesToProcess, err := files.NewSortedFilesFromPaths(s.opts.files, s.opts.SymlinkAllowOpts)
 	if err != nil {
-		return TemplateInput{}, err
+		return Input{}, err
 	}
 
-	return TemplateInput{Files: filesToProcess}, nil
+	return Input{Files: filesToProcess}, nil
 }
 
-func (s *RegularFilesSource) Output(out TemplateOutput) error {
+func (s *RegularFilesSource) Output(out Output) error {
 	if out.Err != nil {
 		return out.Err
 	}

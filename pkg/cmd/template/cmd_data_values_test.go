@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	cmdtpl "github.com/k14s/ytt/pkg/cmd/template"
-	cmdui "github.com/k14s/ytt/pkg/cmd/ui"
+	"github.com/k14s/ytt/pkg/cmd/ui"
 	"github.com/k14s/ytt/pkg/files"
 )
 
@@ -32,10 +32,10 @@ str: str`)
 		files.MustNewFileFromSource(files.NewBytesSource("data.yml", yamlData)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err != nil {
 		t.Fatalf("Expected RunWithFiles to succeed, but was error: %s", out.Err)
 	}
@@ -92,7 +92,7 @@ another:
 		files.MustNewFileFromSource(files.NewBytesSource("data.yml", yamlData)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
 	opts.DataValuesFlags = cmdtpl.DataValuesFlags{
@@ -100,7 +100,7 @@ another:
 		KVsFromYAML: []string{"int=124", "boolean=true", "nested.value=\"str\"", "another.nested.map=567"},
 	}
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err != nil {
 		t.Fatalf("Expected RunWithFiles to succeed, but was error: %s", out.Err)
 	}
@@ -144,7 +144,7 @@ nested:
 		files.MustNewFileFromSource(files.NewBytesSource("data.yml", yamlData)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
 	opts.DataValuesFlags = cmdtpl.DataValuesFlags{
@@ -152,7 +152,7 @@ nested:
 		KVsFromYAML: []string{"another_nested+.other_value=str2"},
 	}
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err != nil {
 		t.Fatalf("Expected RunWithFiles to succeed, but was error: %s", out.Err)
 	}
@@ -219,7 +219,7 @@ nested-lib-val: passes
 		files.MustNewFileFromSource(files.NewBytesSource("_ytt_lib/lib/_ytt_lib/nested-lib/config.yml", nestedLibTplBytes)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
 	opts.DataValuesFlags = cmdtpl.DataValuesFlags{
@@ -227,7 +227,7 @@ nested-lib-val: passes
 		KVsFromYAML: []string{"@~inst1:lib_val=test", "@~inst1@nested-lib:nested_lib_val=passes"},
 	}
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err != nil {
 		t.Fatalf("Expected RunWithFiles to succeed, but was error: %s", out.Err)
 	}
@@ -274,10 +274,10 @@ str: str2`)
 		files.MustNewFileFromSource(files.NewBytesSource("data2.yml", yamlData2)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err != nil {
 		t.Fatalf("Expected RunWithFiles to succeed, but was error: %s", out.Err)
 	}
@@ -323,10 +323,10 @@ int: 123`)
 		files.MustNewFileFromSource(files.NewBytesSource("data.yml", yamlData)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err != nil {
 		t.Fatalf("Expected RunWithFiles to succeed, but was error: %s", out.Err)
 	}
@@ -374,10 +374,10 @@ int: 123`)
 		files.MustNewFileFromSource(files.NewBytesSource("data2.yml", yamlData2)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err != nil {
 		t.Fatalf("Expected RunWithFiles to succeed, but was error: %s", out.Err)
 	}
@@ -426,10 +426,10 @@ data:
 		files.MustNewFileFromSource(files.NewBytesSource("data2.yml", yamlData2)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err != nil {
 		t.Fatalf("Expected RunWithFiles to succeed, but was error: %s", out.Err)
 	}
@@ -461,10 +461,10 @@ non-data-values-doc`)
 		files.MustNewFileFromSource(files.NewBytesSource("data.yml", yamlData)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err == nil {
 		t.Fatalf("Expected RunWithFiles to fail, but was no error")
 	}
@@ -484,10 +484,10 @@ str: str`)
 		files.MustNewFileFromSource(files.NewBytesSource("data.yml", yamlData)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err == nil {
 		t.Fatalf("Expected RunWithFiles to fail, but was no error")
 	}
@@ -528,10 +528,10 @@ data:
 		files.MustNewFileFromSource(files.NewBytesSource("data2.yml", yamlData2)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err != nil {
 		t.Fatalf("Expected RunWithFiles to succeed, but was error: %s", out.Err)
 	}
@@ -596,7 +596,7 @@ nested_val: nested_from_env
 		files.MustNewFileFromSource(files.NewBytesSource("_ytt_lib/lib1/_ytt_lib/nested/tpl.yml", nestedTmplBytes)),
 	})
 
-	ui := cmdui.NewTTY(false)
+	ui := ui.NewTTY(false)
 	opts := cmdtpl.NewOptions()
 
 	opts.DataValuesFlags = cmdtpl.DataValuesFlags{
@@ -609,7 +609,7 @@ nested_val: nested_from_env
 		},
 	}
 
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, ui)
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
 	if out.Err != nil {
 		t.Fatalf("Expected RunWithFiles to succeed, but was error: %s", out.Err)
 	}

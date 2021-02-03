@@ -9,11 +9,11 @@ import (
 
 	"github.com/k14s/difflib"
 	cmdtpl "github.com/k14s/ytt/pkg/cmd/template"
-	cmdui "github.com/k14s/ytt/pkg/cmd/ui"
+	"github.com/k14s/ytt/pkg/cmd/ui"
 	"github.com/k14s/ytt/pkg/files"
 )
 
-var opts *cmdtpl.TemplateOptions
+var opts *cmdtpl.Options
 
 func TestMain(m *testing.M) {
 	opts = cmdtpl.NewOptions()
@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestDataValueConformingToSchemaSucceeds(t *testing.T) {
-	t.Run("Map Only", func(t *testing.T) {
+	t.Run("map only", func(t *testing.T) {
 		schemaYAML := `#@schema/match data_values=True
 ---
 db_conn:
@@ -59,7 +59,7 @@ rendered: true`
 
 		assertYTTWorkflowSucceedsWithOutput(t, filesToProcess, "rendered: true\n")
 	})
-	t.Run("Map And Array", func(t *testing.T) {
+	t.Run("map and array", func(t *testing.T) {
 		schemaYAML := `#@schema/match data_values=True
 ---
 db_conn:
@@ -107,7 +107,7 @@ rendered: #@ data.values
 
 		assertYTTWorkflowSucceedsWithOutput(t, filesToProcess, expected)
 	})
-	t.Run("Array Only", func(t *testing.T) {
+	t.Run("array only", func(t *testing.T) {
 		schemaYAML := `#@schema/match data_values=True
 ---
 - ""
@@ -139,7 +139,7 @@ rendered: #@ data.values
 }
 
 func TestNullableAnnotation(t *testing.T) {
-	t.Run("Allows null on scalars", func(t *testing.T) {
+	t.Run("allows null on scalars", func(t *testing.T) {
 		schemaYAML := `#@schema/match data_values=True
 ---
 vpc:
@@ -177,7 +177,7 @@ vpc:
 
 		assertYTTWorkflowSucceedsWithOutput(t, filesToProcess, expected)
 	})
-	t.Run("Allows null on top level map item", func(t *testing.T) {
+	t.Run("allows null on top level map item", func(t *testing.T) {
 		schemaYAML := `#@schema/match data_values=True
 ---
 #@schema/nullable
@@ -204,7 +204,7 @@ vpc: #@ data.values.vpc
 
 		assertYTTWorkflowSucceedsWithOutput(t, filesToProcess, expected)
 	})
-	t.Run("Allows null on map values", func(t *testing.T) {
+	t.Run("allows null on map values", func(t *testing.T) {
 		schemaYAML := `#@schema/match data_values=True
 ---
 vpc:
@@ -233,7 +233,7 @@ vpc: #@ data.values.vpc
 
 		assertYTTWorkflowSucceedsWithOutput(t, filesToProcess, expected)
 	})
-	t.Run("Allows null on array values", func(t *testing.T) {
+	t.Run("allows null on array values", func(t *testing.T) {
 		schemaYAML := `#@schema/match data_values=True
 ---
 vpc:
@@ -263,7 +263,7 @@ vpc: #@ data.values.vpc
 
 		assertYTTWorkflowSucceedsWithOutput(t, filesToProcess, expected)
 	})
-	t.Run("Data values can override nullables", func(t *testing.T) {
+	t.Run("data values can override nullables", func(t *testing.T) {
 		schemaYAML := `#@schema/match data_values=True
 ---
 vpc:
@@ -447,7 +447,7 @@ system_domain: #@ data.values.system_domain
 		})
 		assertYTTWorkflowSucceedsWithOutput(t, filesToProcess, expected)
 	})
-	t.Run("Array defaults to an empty list", func(t *testing.T) {
+	t.Run("array defaults to an empty list", func(t *testing.T) {
 		schemaYAML := `#@schema/match data_values=True
 ---
 vpc:
@@ -476,7 +476,7 @@ vpc: #@ data.values.vpc
 
 		assertYTTWorkflowSucceedsWithOutput(t, filesToProcess, expected)
 	})
-	t.Run("When a key in the data value is omitted yet present in the schema it is filled in", func(t *testing.T) {
+	t.Run("when a key in the data value is omitted yet present in the schema, it is filled in", func(t *testing.T) {
 		schemaYAML := `#@schema/match data_values=True
 ---
 vpc:
@@ -549,7 +549,7 @@ rendered: true`
 }
 
 func TestSchemaIsInvalidItFails(t *testing.T) {
-	t.Run("Array value with less than one elements", func(t *testing.T) {
+	t.Run("array value with fewer than one elements", func(t *testing.T) {
 		schemaYAML := `#@schema/match data_values=True
 ---
 vpc:
@@ -569,7 +569,7 @@ vpc:
 
 		assertYTTWorkflowFailsWithErrorMessage(t, filesToProcess, expectedErr)
 	})
-	t.Run("Array value with more than one elements", func(t *testing.T) {
+	t.Run("array value with more than one elements", func(t *testing.T) {
 		schemaYAML := `#@schema/match data_values=True
 ---
 vpc:
@@ -590,7 +590,7 @@ vpc:
 
 		assertYTTWorkflowFailsWithErrorMessage(t, filesToProcess, expectedErr)
 	})
-	t.Run("Array value with a nullable annotation", func(t *testing.T) {
+	t.Run("array value with a nullable annotation", func(t *testing.T) {
 		schemaYAML := `#@schema/match data_values=True
 ---
 vpc:
@@ -603,6 +603,18 @@ vpc:
 			files.MustNewFileFromSource(files.NewBytesSource("schema.yml", []byte(schemaYAML))),
 		})
 		expectedErr := "Array items cannot be annotated with #@schema/nullable (schema.yml:6). If this behaviour would be valuable, please submit an issue on https://github.com/vmware-tanzu/carvel-ytt"
+		assertYTTWorkflowFailsWithErrorMessage(t, filesToProcess, expectedErr)
+	})
+	t.Run("null given as a value", func(t *testing.T) {
+		schemaYAML := `#@schema/match data_values=True
+---
+vpc: null
+`
+
+		filesToProcess := files.NewSortedFiles([]*files.File{
+			files.MustNewFileFromSource(files.NewBytesSource("schema.yml", []byte(schemaYAML))),
+		})
+		expectedErr := "Expected a non-null value, of the desired type"
 		assertYTTWorkflowFailsWithErrorMessage(t, filesToProcess, expectedErr)
 	})
 }
@@ -627,7 +639,7 @@ rendered: true`
 
 func assertYTTWorkflowSucceedsWithOutput(t *testing.T, filesToProcess []*files.File, expectedOut string) {
 	t.Helper()
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, cmdui.NewTTY(false))
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui.NewTTY(false))
 	if out.Err != nil {
 		t.Fatalf("Expected RunWithFiles to succeed, but was error: %s", out.Err)
 	}
@@ -644,7 +656,7 @@ func assertYTTWorkflowSucceedsWithOutput(t *testing.T, filesToProcess []*files.F
 
 func assertYTTWorkflowFailsWithErrorMessage(t *testing.T, filesToProcess []*files.File, expectedErr string) {
 	t.Helper()
-	out := opts.RunWithFiles(cmdtpl.TemplateInput{Files: filesToProcess}, cmdui.NewTTY(false))
+	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui.NewTTY(false))
 	if out.Err == nil {
 		t.Fatalf("Expected an error, but succeeded.")
 	}
